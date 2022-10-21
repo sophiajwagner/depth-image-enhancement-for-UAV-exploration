@@ -1,2 +1,2 @@
-# depth_image_enhancement_for_UAV_exploration
-Depth image enhancement for autonomous UAV exploration
+# Depth image enhancement for UAV exploration
+
