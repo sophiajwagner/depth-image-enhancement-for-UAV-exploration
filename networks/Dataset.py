@@ -26,11 +26,11 @@ class DepthDataset(torch.utils.data.Dataset):
         input = io.imread(input_name)
         input /= 255 #normalize image to be in [0,1]
 
-        gt_name = os.path.join(self.gt_path, 'image_' + str(idx) + '.png')
+        gt_name = os.path.join(self.gt_path, 'image_'+str(idx)+'.png')
         gt = io.imread(gt_name)
-        gt /= 255  # normalize image to be in [0,1]
+        gt /= 255 #normalize image to be in [0,1]
 
-        sample = {'input_img': input, 'gt_img': gt}
+        sample = {'input': input, 'gt': gt}
 
         if self.transform:
             sample = self.transform(sample)

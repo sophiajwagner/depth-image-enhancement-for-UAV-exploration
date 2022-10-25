@@ -1,13 +1,18 @@
 from torch import nn, optim
 import numpy as np
 import matplotlib.pyplot as plt
+from torch.utils.data.sampler import SubsetRandomSampler
 
 from networks.Autoencoder import *
+from networks.Dataset import DepthDataset
+
 
 hparams = {
     "batch_size": 64,
     "learning_rate": 1e-3,
-    "num_epochs": 30
+    "num_epochs": 5,
+    "validation_split": 0.2,
+    "data_path": '../../python_images',
 }
 
 def train():
@@ -21,20 +26,28 @@ def train():
     # Optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=hparams["learning_rate"])
 
-    # TODO
-    #train_dataset = ...
-    #val_dataset = ...
-    #test_dataset = ...
+    # Dataloader
+    #https://stackoverflow.com/questions/50544730/how-do-i-split-a-custom-dataset-into-training-and-test-datasets
+    dataset = DepthDataset(hparams)
+    shuffle_dataset = True
+    random_seed = 42
+    # Creating data indices for training and validation splits:
+    dataset_size = len(dataset)
+    indices = list(range(dataset_size))
+    split = int(np.floor(hparams["validation_split"] * dataset_size))
+    if shuffle_dataset:
+        np.random.seed(random_seed)
+        np.random.shuffle(indices)
+    train_indices, val_indices = indices[split:], indices[:split]
 
-    train_loader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=hparams["batch_size"], shuffle=True, num_workers=4, pin_memory=True
-    )
-    val_loader = torch.utils.data.DataLoader(
-        val_dataset, batch_size=hparams["batch_size"], shuffle=True, num_workers=4, pin_memory=True
-    )
-    test_loader = torch.utils.data.DataLoader(
-        test_dataset, batch_size=hparams["batch_size"], shuffle=False, num_workers=4
-    )
+    # Creating data samplers and loaders:
+    train_sampler = SubsetRandomSampler(train_indices)
+    val_sampler = SubsetRandomSampler(val_indices)
+
+    train_loader = torch.utils.data.DataLoader(dataset, batch_size=hparams["batch_size"],
+                                               sampler=train_sampler)
+    val_loader = torch.utils.data.DataLoader(dataset, batch_size=hparams["batch_size"],
+                                                    sampler=val_sampler)
 
     diz_loss = {'train_loss': [], 'val_loss': []}
     for epoch in range(hparams["num_epochs"]):
@@ -43,7 +56,8 @@ def train():
         print('\n EPOCH {}/{} \t train loss {} \t val loss {}'.format(epoch + 1, hparams["num_epochs"], train_loss, val_loss))
         diz_loss['train_loss'].append(train_loss)
         diz_loss['val_loss'].append(val_loss)
-        plot_ae_outputs(model, n=3)
+
+    plot_ae_outputs(model, device, dataset, val_indices, n=3)
 
 
 
@@ -95,18 +109,17 @@ def test_epoch(model, device, dataloader, loss_fn):
     return val_loss.data
 
 
-def plot_ae_outputs(model, val_dataset, n=3):
+def plot_ae_outputs(model, device, dataset, indices, n=3):
     plt.figure(figsize=(16,4.5))
-    targets = val_dataset.targets.numpy()
-    t_idx = {i:np.where(targets==i)[0][0] for i in range(n)}
+    indices = indices[:n]
+    #targets = val_dataset.targets.numpy()
+    #t_idx = {i:np.where(targets==i)[0][0] for i in range(n)}
     for i in range(n):
-
-        #TODO
-        input = val_dataset['input'][t_idx[i]][0].unsqueeze(0).to(device)
+        input = dataset[i]['input'].to(device)
         model.eval()
         with torch.no_grad():
-            rec_img  = model(input)
-        gt_img = val_dataset['ground truth'][t_idx[i]][0].unsqueeze(0).to(device)
+            rec_img = model(input)
+        gt_img = dataset[i]['gt'].to(device)
 
         ax = plt.subplot(3, n, i+1)
         plt.imshow(input.cpu().squeeze().numpy(), cmap='gist_gray')
@@ -129,5 +142,7 @@ def plot_ae_outputs(model, val_dataset, n=3):
         if i == n // 2:
             ax.set_title('Reconstructed images')
     plt.show()
+
+
 
 
