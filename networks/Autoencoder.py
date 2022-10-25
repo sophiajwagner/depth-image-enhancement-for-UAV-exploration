@@ -8,7 +8,7 @@ from torchvision import datasets, transforms
 
 class Encoder(nn.Module):
     def __init__(self, hparams):
-        super(Encoder, self).__init__()
+        super().__init__()
 
         self.hparams = hparams
         #https://www.cs.toronto.edu/~lczhang/360/lec/w05/autoencoder.html
@@ -24,7 +24,7 @@ class Encoder(nn.Module):
             #nn.MaxPool2d(2, 2),
             nn.Dropout(p=0.5),
             nn.Conv2d(16, 32, kernel_size=3, stride=2, padding=1),
-            nn.BatchNorm2d(16),
+            nn.BatchNorm2d(32),
             nn.ReLU(inplace=True),
             #nn.MaxPool2d(2, 2)
         )
@@ -36,7 +36,7 @@ class Encoder(nn.Module):
 
 class Decoder(nn.Module):
     def __init__(self, hparams):
-        super(Decoder, self).__init__()
+        super().__init__()
 
         self.hparams = hparams
         self.decoder = nn.Sequential(
@@ -59,11 +59,12 @@ class Decoder(nn.Module):
 
 class Autoencoder(nn.Module):
     def __init__(self, hparams):
-        super(Autoencoder, self).__init__()
+        super().__init__()
         self.encoder = Encoder(hparams)
         self.decoder = Decoder(hparams)
 
     def forward(self, x):
+        #x = x.unsqueeze(1)
         z = self.encoder(x)
         return self.decoder(z)
 
