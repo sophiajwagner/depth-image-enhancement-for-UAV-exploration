@@ -3,8 +3,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from torch.utils.data.sampler import SubsetRandomSampler
 
-from networks.Autoencoder import *
-from networks.DepthDataset import DepthDataset
+from networks.StereoAutoencoder import *
+from networks.StereoDataset import StereoDataset
 
 
 hparams = {
@@ -17,7 +17,7 @@ hparams = {
 
 def train():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = Autoencoder(hparams).to(device).float()
+    model = StereoAutoencoder(hparams).to(device).float()
     print(model)
 
     # Loss function
@@ -28,7 +28,7 @@ def train():
 
     # Dataloader
     #https://stackoverflow.com/questions/50544730/how-do-i-split-a-custom-dataset-into-training-and-test-datasets
-    dataset = DepthDataset(hparams)
+    dataset = StereoDataset(hparams)
     shuffle_dataset = True
     random_seed = 42
     # Creating data indices for training and validation splits:
@@ -74,9 +74,10 @@ def train_epoch(model, device, dataloader, loss_fn, optimizer):
     train_loss = []
     # Iterate the dataloader
     for i, data in enumerate(dataloader):
-        input = data['input'].to(device).unsqueeze(1).float()
+        left_input = data['left_input'].to(device).unsqueeze(1).float()
+        right_input = data['right_input'].to(device).unsqueeze(1).float()
         gt = data['gt'].to(device).unsqueeze(1).float()
-        output = model(input)
+        output = model(left_input, right_input)
         # Evaluate loss
         loss = loss_fn(output, gt)
         # Backward pass
@@ -100,13 +101,14 @@ def test_epoch(model, device, dataloader, loss_fn, visualize=False):
         conc_gt = []
         conc_inp = []
         for i, data in enumerate(dataloader):
-            input = data['input'].to(device).unsqueeze(1).float()
+            left_input = data['left_input'].to(device).unsqueeze(1).float()
+            right_input = data['right_input'].to(device).unsqueeze(1).float()
             gt = data['gt'].to(device).unsqueeze(1).float()
-            output = model(input)
+            output = model(left_input, right_input)
             # Append the network output and the ground truth to the lists
             conc_out.append(output.cpu())
             conc_gt.append(gt.cpu())
-            conc_inp.append(input.cpu())
+            conc_inp.append(left_input.cpu())
         # Create a single tensor with all the values in the lists
         conc_out = torch.cat(conc_out)
         conc_gt = torch.cat(conc_gt)
@@ -132,7 +134,7 @@ def plot_outputs(conc_out, conc_gt, conc_inp, n=5):
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)
         if i == n//2:
-            ax.set_title('Input images')
+            ax.set_title('Left input images')
 
         ax = plt.subplot(3, n, i+1+n)
         plt.imshow(gt_img[i], cmap='gist_gray')

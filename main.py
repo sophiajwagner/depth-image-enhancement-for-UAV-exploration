@@ -1,6 +1,6 @@
-
+from networks import train
 
 if __name__ == '__main__':
-    print('PyCharm')
+    train()
 
 
