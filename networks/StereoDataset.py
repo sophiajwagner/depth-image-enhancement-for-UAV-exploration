@@ -16,7 +16,7 @@ class StereoDataset(Dataset):
         # maybe add quality later
 
     def __len__(self):
-        return len(os.listdir(*[self.input_path]))
+        return len(os.listdir(*[self.left_input_path]))
 
     def __getitem__(self, idx):
         if torch.is_tensor(idx):

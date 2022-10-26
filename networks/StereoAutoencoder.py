@@ -13,7 +13,7 @@ class Encoder(nn.Module):
         self.hparams = hparams
         #https://www.cs.toronto.edu/~lczhang/360/lec/w05/autoencoder.html
         self.encoder = nn.Sequential(
-            nn.Conv2d(1, 8, kernel_size=3, stride=2, padding=1),
+            nn.Conv2d(4, 8, kernel_size=3, stride=2, padding=1),
             nn.BatchNorm2d(8),
             nn.ReLU(inplace=True),
             #nn.MaxPool2d(2, 2),
@@ -40,7 +40,7 @@ class Decoder(nn.Module):
 
         self.hparams = hparams
         self.decoder = nn.Sequential(
-            nn.ConvTranspose2d(64, 32, kernel_size=3, stride=1, padding=1, output_padding=1),
+            nn.ConvTranspose2d(64, 32, kernel_size=3, stride=1, padding=1, output_padding=0),
             nn.BatchNorm2d(32),
             nn.ReLU(inplace=True),
             nn.ConvTranspose2d(32, 16, kernel_size=3, stride=2, padding=1, output_padding=1),
@@ -70,8 +70,8 @@ class StereoAutoencoder(nn.Module):
         z1 = self.encoder(x1)
         z2 = self.encoder(x2)
 
-        z1 = z1.view(z1.size(0), -1)
-        z2 = z2.view(z2.size(0), -1)
+        #z1 = z1.view(z1.size(0), -1)
+        #z2 = z2.view(z2.size(0), -1)
         z = torch.cat((z1, z2), dim=1)
 
         return self.decoder(z)

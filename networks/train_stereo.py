@@ -54,7 +54,7 @@ def train():
         train_loss = train_epoch(model, device, train_loader, criterion, optimizer)
         visualize = False
         #if epoch+1==hparams["num_epochs"]: 
-        if (epoch+1)%5 == 0: 
+        if (epoch+1)%1 == 0: 
             visualize = True
         val_loss = test_epoch(model, device, val_loader, criterion, visualize)
         print('\n EPOCH {}/{} \t train loss {} \t val loss {}'.format(epoch + 1, hparams["num_epochs"], train_loss, val_loss))
@@ -74,8 +74,8 @@ def train_epoch(model, device, dataloader, loss_fn, optimizer):
     train_loss = []
     # Iterate the dataloader
     for i, data in enumerate(dataloader):
-        left_input = data['left_input'].to(device).unsqueeze(1).float()
-        right_input = data['right_input'].to(device).unsqueeze(1).float()
+        left_input = data['left_input'].to(device).permute(0,3,1,2).float()
+        right_input = data['right_input'].to(device).permute(0,3,1,2).float()
         gt = data['gt'].to(device).unsqueeze(1).float()
         output = model(left_input, right_input)
         # Evaluate loss
@@ -101,14 +101,15 @@ def test_epoch(model, device, dataloader, loss_fn, visualize=False):
         conc_gt = []
         conc_inp = []
         for i, data in enumerate(dataloader):
-            left_input = data['left_input'].to(device).unsqueeze(1).float()
-            right_input = data['right_input'].to(device).unsqueeze(1).float()
+            left_input = data['left_input'].to(device)
+            conc_inp.append(left_input.cpu())
+            left_input = left_input.permute(0,3,1,2).float()
+            right_input = data['right_input'].to(device).permute(0,3,1,2).float()
             gt = data['gt'].to(device).unsqueeze(1).float()
             output = model(left_input, right_input)
             # Append the network output and the ground truth to the lists
             conc_out.append(output.cpu())
             conc_gt.append(gt.cpu())
-            conc_inp.append(left_input.cpu())
         # Create a single tensor with all the values in the lists
         conc_out = torch.cat(conc_out)
         conc_gt = torch.cat(conc_gt)
@@ -123,11 +124,9 @@ def test_epoch(model, device, dataloader, loss_fn, visualize=False):
 
 def plot_outputs(conc_out, conc_gt, conc_inp, n=5): 
     plt.figure(figsize=(14,5)) 
-    print(conc_out.size())
     output = conc_out.squeeze().numpy()
     gt_img = conc_gt.squeeze().numpy()
     input = conc_inp.squeeze().numpy()
-    print(conc_out.shape)
     for i in range(n): 
         ax = plt.subplot(3, n, i+1)
         plt.imshow(input[i], cmap='gist_gray')
