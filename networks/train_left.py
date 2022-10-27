@@ -3,21 +3,22 @@ import numpy as np
 import matplotlib.pyplot as plt
 from torch.utils.data.sampler import SubsetRandomSampler
 
-from networks.StereoAutoencoder import *
-from networks.StereoDataset import StereoDataset
+from networks.LeftAutoencoder import *
+from networks.LeftDataset import LeftDataset
 
 
 hparams = {
     "batch_size": 20,
     "learning_rate": 1e-3,
-    "num_epochs": 40,
+    "num_epochs": 80,
     "validation_split": 0.2,
-    "data_path": '../python_images_new',
+    "input_data_path": '../python_images_new/low_light/low_left',
+    "gt_data_path": '../python_images_new/high_light/high_left',
 }
 
 def train():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = StereoAutoencoder(hparams).to(device).float()
+    model = Autoencoder(hparams).to(device).float()
     print(model)
 
     # Loss function
@@ -28,7 +29,7 @@ def train():
 
     # Dataloader
     #https://stackoverflow.com/questions/50544730/how-do-i-split-a-custom-dataset-into-training-and-test-datasets
-    dataset = StereoDataset(hparams)
+    dataset = LeftDataset(hparams)
     shuffle_dataset = True
     random_seed = 42
     # Creating data indices for training and validation splits:
@@ -54,14 +55,14 @@ def train():
         train_loss = train_epoch(model, device, train_loader, criterion, optimizer)
         visualize = False
         #if epoch+1==hparams["num_epochs"]: 
-        if (epoch+1)%1 == 0: 
+        if (epoch+1)%5 == 0: 
             visualize = True
         val_loss = test_epoch(model, device, val_loader, criterion, visualize)
         print('\n EPOCH {}/{} \t train loss {} \t val loss {}'.format(epoch + 1, hparams["num_epochs"], train_loss, val_loss))
         diz_loss['train_loss'].append(train_loss)
         diz_loss['val_loss'].append(val_loss)
-
-    #plot_ae_outputs(model, device, dataset, val_indices, n=3)
+        
+    plot_loss(hparams["num_epochs"], diz_loss['train_loss'], diz_loss['val_loss'])
 
 
 
@@ -74,10 +75,9 @@ def train_epoch(model, device, dataloader, loss_fn, optimizer):
     train_loss = []
     # Iterate the dataloader
     for i, data in enumerate(dataloader):
-        left_input = data['left_input'].to(device).permute(0,3,1,2).float()
-        right_input = data['right_input'].to(device).permute(0,3,1,2).float()
-        gt = data['gt'].to(device).unsqueeze(1).float()
-        output = model(left_input, right_input)
+        input = data['input'].to(device).permute(0,3,1,2).float()
+        gt = data['gt'].to(device).permute(0,3,1,2).float()
+        output = model(input)
         # Evaluate loss
         loss = loss_fn(output, gt)
         # Backward pass
@@ -101,15 +101,13 @@ def test_epoch(model, device, dataloader, loss_fn, visualize=False):
         conc_gt = []
         conc_inp = []
         for i, data in enumerate(dataloader):
-            left_input = data['left_input'].to(device)
-            conc_inp.append(left_input.cpu())
-            left_input = left_input.permute(0,3,1,2).float()
-            right_input = data['right_input'].to(device).permute(0,3,1,2).float()
-            gt = data['gt'].to(device).unsqueeze(1).float()
-            output = model(left_input, right_input)
+            input = data['input'].to(device).permute(0,3,1,2).float()
+            gt = data['gt'].to(device).permute(0,3,1,2).float()
+            output = model(input)
             # Append the network output and the ground truth to the lists
-            conc_out.append(output.cpu())
-            conc_gt.append(gt.cpu())
+            conc_out.append(output.permute(0,2,3,1).cpu())
+            conc_gt.append(gt.permute(0,2,3,1).cpu())
+            conc_inp.append(input.permute(0,2,3,1).cpu())
         # Create a single tensor with all the values in the lists
         conc_out = torch.cat(conc_out)
         conc_gt = torch.cat(conc_gt)
@@ -122,8 +120,8 @@ def test_epoch(model, device, dataloader, loss_fn, visualize=False):
     return val_loss.data
 
 
-def plot_outputs(conc_out, conc_gt, conc_inp, n=5): 
-    plt.figure(figsize=(14,5)) 
+def plot_outputs(conc_out, conc_gt, conc_inp, n=3): 
+    plt.figure(figsize=(8,5)) 
     output = conc_out.squeeze().numpy()
     gt_img = conc_gt.squeeze().numpy()
     input = conc_inp.squeeze().numpy()
@@ -133,7 +131,7 @@ def plot_outputs(conc_out, conc_gt, conc_inp, n=5):
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)
         if i == n//2:
-            ax.set_title('Left input images')
+            ax.set_title('Input images')
 
         ax = plt.subplot(3, n, i+1+n)
         plt.imshow(gt_img[i], cmap='gist_gray')
@@ -148,6 +146,18 @@ def plot_outputs(conc_out, conc_gt, conc_inp, n=5):
         ax.get_yaxis().set_visible(False)
         if i == n // 2:
             ax.set_title('Output images')
+    plt.show()
+    
+
+
+def plot_loss(num_epochs, train_loss, val_loss):
+    plt.plot(range(1,num_epochs+1), train_loss, '-b', label='train loss')
+    plt.plot(range(1,num_epochs+1), val_loss, '-r', label='validation loss')
+
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.legend(loc='upper right')
+    plt.title('Train and validation loss')
     plt.show()
 
 

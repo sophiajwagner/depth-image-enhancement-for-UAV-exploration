@@ -10,9 +10,10 @@ from networks.DepthDataset import DepthDataset
 hparams = {
     "batch_size": 20,
     "learning_rate": 1e-3,
-    "num_epochs": 40,
+    "num_epochs": 50,
     "validation_split": 0.2,
-    "data_path": '../python_images_new',
+    "input_data_path": '../python_images_new/low_light/low_depth',
+    "gt_data_path": '../python_images_new/high_light/high_depth',
 }
 
 def train():
@@ -21,7 +22,7 @@ def train():
     print(model)
 
     # Loss function
-    criterion = nn.BCELoss()
+    criterion = nn.MSELoss()
 
     # Optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=hparams["learning_rate"])
@@ -61,7 +62,7 @@ def train():
         diz_loss['train_loss'].append(train_loss)
         diz_loss['val_loss'].append(val_loss)
 
-    #plot_ae_outputs(model, device, dataset, val_indices, n=3)
+    plot_loss(hparams["num_epochs"], diz_loss['train_loss'], diz_loss['val_loss'])
 
 
 
@@ -119,13 +120,11 @@ def test_epoch(model, device, dataloader, loss_fn, visualize=False):
     return val_loss.data
 
 
-def plot_outputs(conc_out, conc_gt, conc_inp, n=5): 
-    plt.figure(figsize=(14,5)) 
-    print(conc_out.size())
+def plot_outputs(conc_out, conc_gt, conc_inp, n=3): 
+    plt.figure(figsize=(8,5)) 
     output = conc_out.squeeze().numpy()
     gt_img = conc_gt.squeeze().numpy()
     input = conc_inp.squeeze().numpy()
-    print(conc_out.shape)
     for i in range(n): 
         ax = plt.subplot(3, n, i+1)
         plt.imshow(input[i], cmap='gist_gray')
@@ -147,6 +146,17 @@ def plot_outputs(conc_out, conc_gt, conc_inp, n=5):
         ax.get_yaxis().set_visible(False)
         if i == n // 2:
             ax.set_title('Output images')
+    plt.show()
+    
+    
+def plot_loss(num_epochs, train_loss, val_loss):
+    plt.plot(range(1,num_epochs+1), train_loss, '-b', label='train loss')
+    plt.plot(range(1,num_epochs+1), val_loss, '-r', label='validation loss')
+
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.legend(loc='upper right')
+    plt.title('Train and validation loss')
     plt.show()
 
 
