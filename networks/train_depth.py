@@ -4,17 +4,17 @@ import matplotlib.pyplot as plt
 from torch.utils.data.sampler import SubsetRandomSampler
 import os
 
-from networks.LeftAutoencoder import *
-from networks.LeftDataset import LeftDataset
+from networks.Autoencoder import *
+from networks.DepthDataset import DepthDataset
 
 
 hparams = {
     "batch_size": 20,
     "learning_rate": 1e-3,
-    "num_epochs": 80,
+    "num_epochs": 50,
     "validation_split": 0.2,
-    "input_data_path": '../python_images_new/low_light/low_left',
-    "gt_data_path": '../python_images_new/high_light/high_left',
+    "input_data_path": '../python_images_new/low_light/low_depth',
+    "gt_data_path": '../python_images_new/high_light/high_depth',
 }
 
 def train():
@@ -30,7 +30,7 @@ def train():
 
     # Dataloader
     #https://stackoverflow.com/questions/50544730/how-do-i-split-a-custom-dataset-into-training-and-test-datasets
-    dataset = LeftDataset(hparams)
+    dataset = DepthDataset(hparams)
     shuffle_dataset = True
     random_seed = 42
     # Creating data indices for training and validation splits:
@@ -62,18 +62,20 @@ def train():
         print('\n EPOCH {}/{} \t train loss {} \t val loss {}'.format(epoch + 1, hparams["num_epochs"], train_loss, val_loss))
         diz_loss['train_loss'].append(train_loss)
         diz_loss['val_loss'].append(val_loss)
-        
+
         if visualize: 
             plot_loss(epoch+1, diz_loss['train_loss'], diz_loss['val_loss'])
-
-    torch.save(model.state_dict(), "out/train_left/weights") 
-
-
-
+    
+        if not os.path.exists('out/train_depth'):
+            os.makedirs('out/train_depth')
+        torch.save(model.state_dict(), "out/train_depth/weights") 
+        
+        
+        
 def test(): 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = Autoencoder(hparams).to(device).float()
-    model.load_state_dict(torch.load("out/train_left/weights"))
+    model.load_state_dict(torch.load("out/train_depth/weights"))
     
     # Loss function
     criterion = nn.MSELoss() 
@@ -103,11 +105,11 @@ def test():
     
     val_loss = test_epoch(model, device, val_loader, criterion, True)
     
-    
+
 def test_image(idx): 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = Autoencoder(hparams).to(device).float()
-    model.load_state_dict(torch.load("out/train_left/weights"))
+    model.load_state_dict(torch.load("out/train_depth/weights"))
     
     dataset = DepthDataset(hparams) 
     input = torch.from_numpy(dataset[idx-1]['input']).to(device).unsqueeze(0).unsqueeze(0).float()
@@ -119,6 +121,7 @@ def test_image(idx):
     return output
 
 
+
 ### Training function
 #https://medium.com/dataseries/convolutional-autoencoder-in-pytorch-on-mnist-dataset-d65145c132ac
 def train_epoch(model, device, dataloader, loss_fn, optimizer):
@@ -127,8 +130,8 @@ def train_epoch(model, device, dataloader, loss_fn, optimizer):
     train_loss = []
     # Iterate the dataloader
     for i, data in enumerate(dataloader):
-        input = data['input'].to(device).permute(0,3,1,2).float()
-        gt = data['gt'].to(device).permute(0,3,1,2).float()
+        input = data['input'].to(device).unsqueeze(1).float()
+        gt = data['gt'].to(device).unsqueeze(1).float()
         output = model(input)
         # Evaluate loss
         loss = loss_fn(output, gt)
@@ -153,13 +156,13 @@ def test_epoch(model, device, dataloader, loss_fn, visualize=False):
         conc_gt = []
         conc_inp = []
         for i, data in enumerate(dataloader):
-            input = data['input'].to(device).permute(0,3,1,2).float()
-            gt = data['gt'].to(device).permute(0,3,1,2).float()
+            input = data['input'].to(device).unsqueeze(1).float()
+            gt = data['gt'].to(device).unsqueeze(1).float()
             output = model(input)
             # Append the network output and the ground truth to the lists
-            conc_out.append(output.permute(0,2,3,1).cpu())
-            conc_gt.append(gt.permute(0,2,3,1).cpu())
-            conc_inp.append(input.permute(0,2,3,1).cpu())
+            conc_out.append(output.cpu())
+            conc_gt.append(gt.cpu())
+            conc_inp.append(input.cpu())
         # Create a single tensor with all the values in the lists
         conc_out = torch.cat(conc_out)
         conc_gt = torch.cat(conc_gt)
@@ -198,13 +201,12 @@ def plot_outputs(conc_out, conc_gt, conc_inp, n=3):
         ax.get_yaxis().set_visible(False)
         if i == n // 2:
             ax.set_title('Output images')
-    if not os.path.exists('out/train_left'):
-        os.makedirs('out/train_left')
-    plt.savefig('out/train_left/preds.png')
+    if not os.path.exists('out/train_depth'):
+        os.makedirs('out/train_depth')
+    plt.savefig('out/train_depth/preds.png')
     plt.show()
     
-
-
+    
 def plot_loss(num_epochs, train_loss, val_loss):
     plt.plot(range(1,num_epochs+1), train_loss, '-b', label='train loss')
     plt.plot(range(1,num_epochs+1), val_loss, '-r', label='validation loss')
