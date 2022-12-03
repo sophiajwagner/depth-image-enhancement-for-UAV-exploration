@@ -9,12 +9,13 @@ from networks.LeftDataset import LeftDataset
 
 
 hparams = {
-    "batch_size": 20,
+    "batch_size": 25,
     "learning_rate": 1e-3,
-    "num_epochs": 80,
+    "num_epochs": 30,
     "validation_split": 0.2,
-    "input_data_path": '../python_images_new/low_light/low_left',
-    "gt_data_path": '../python_images_new/high_light/high_left',
+    "input_data_path": '../total_python_images/low_light/low_right_tif',
+    "gt_data_path": '../total_python_images/high_light/high_right_tif',
+    "out_path": "out/train_left",
 }
 
 def train():
@@ -65,22 +66,26 @@ def train():
         
         if visualize: 
             plot_loss(epoch+1, diz_loss['train_loss'], diz_loss['val_loss'])
-
-    torch.save(model.state_dict(), "out/train_left/weights") 
+        
+        #if not os.path.exists('out/train_left'):
+        #    os.makedirs('out/train_left')
+    torch.save(model, os.path.join(hparams['out_path'],"weights_pt.pt"))
+    torch.save(model.state_dict(), os.path.join(hparams['out_path'],"weights"))
+    
 
 
 
 def test(): 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = Autoencoder(hparams).to(device).float()
-    model.load_state_dict(torch.load("out/train_left/weights"))
+    model.load_state_dict(torch.load(os.path.join(hparams['out_path'],"weights")))
     
     # Loss function
     criterion = nn.MSELoss() 
     
     # Dataloader
     #https://stackoverflow.com/questions/50544730/how-do-i-split-a-custom-dataset-into-training-and-test-datasets
-    dataset = DepthDataset(hparams)
+    dataset = LeftDataset(hparams)
     shuffle_dataset = True
     random_seed = 42
     # Creating data indices for training and validation splits:
@@ -107,13 +112,13 @@ def test():
 def test_image(idx): 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = Autoencoder(hparams).to(device).float()
-    model.load_state_dict(torch.load("out/train_left/weights"))
+    model.load_state_dict(torch.load(os.path.join(hparams['out_path'],"weights")))
+    model.eval()
     
-    dataset = DepthDataset(hparams) 
-    input = torch.from_numpy(dataset[idx-1]['input']).to(device).unsqueeze(0).unsqueeze(0).float()
-    #gt = torch.from_numpy(dataset[idx]['gt']).to(device).float()
-    output = model(input).squeeze().cpu().detach().numpy()
-    
+    dataset = LeftDataset(hparams) 
+    input = torch.from_numpy(dataset[idx-1]['input']).to(device).unsqueeze(0).permute(0,3,1,2).float()
+    output = model(input).squeeze().permute(1,2,0).squeeze().cpu().detach().numpy()
+
     plt.imshow(output, cmap='gist_gray')
     plt.show()
     return output
@@ -198,9 +203,9 @@ def plot_outputs(conc_out, conc_gt, conc_inp, n=3):
         ax.get_yaxis().set_visible(False)
         if i == n // 2:
             ax.set_title('Output images')
-    if not os.path.exists('out/train_left'):
-        os.makedirs('out/train_left')
-    plt.savefig('out/train_left/preds.png')
+    if not os.path.exists(hparams['out_path']):
+        os.makedirs(hparams['out_path'])
+    plt.savefig(os.path.join(hparams['out_path'],'preds.png'))
     plt.show()
     
 
@@ -213,7 +218,7 @@ def plot_loss(num_epochs, train_loss, val_loss):
     plt.ylabel('Loss')
     plt.legend(loc='upper right')
     plt.title('Train and validation loss')
-    plt.savefig('out/train_depth/loss.png')
+    plt.savefig(os.path.join(hparams['out_path'],'loss.png'))
     plt.show()
 
 

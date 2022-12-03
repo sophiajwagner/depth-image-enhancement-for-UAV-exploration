@@ -20,14 +20,14 @@ class LeftDataset(Dataset):
         if torch.is_tensor(idx):
             idx = idx.tolist()
 
-        input_name = os.path.join(self.input_path, 'image_'+str(idx+1)+'.png')
+        input_name = os.path.join(self.input_path, 'image_'+str(idx+1)+'.tif')
         input = io.imread(input_name)
-        input = input[:,:,:3] # 4th channel consists 1s only
+        input = input[:,:,:3] # 4th channel consists of 1s only
         input = np.divide(input, 255) #normalize image to be in [0,1]
 
-        gt_name = os.path.join(self.gt_path, 'image_'+str(idx+1)+'.png')
+        gt_name = os.path.join(self.gt_path, 'image_'+str(idx+1)+'.tif')
         gt = io.imread(gt_name)
-        gt = gt[:,:,:3] # 4th channel consists 1s only
+        gt = gt[:,:,:3] # 4th channel consists of 1s only
         gt = np.divide(gt, 255) #normalize image to be in [0,1]
 
         sample = {'input': input, 'gt': gt}

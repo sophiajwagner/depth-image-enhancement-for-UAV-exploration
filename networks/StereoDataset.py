@@ -9,10 +9,10 @@ class StereoDataset(Dataset):
     def __init__(self, hparams, transform=None):
         super().__init__()
         self.data_path = hparams['data_path']
-        self.left_input_path = os.path.join(self.data_path,'low_light/low_left')
-        self.right_input_path = os.path.join(self.data_path, 'low_light/low_right')
-        self.depth_input_path = os.path.join(self.data_path, 'low_light/low_depth')
-        self.gt_path = os.path.join(self.data_path, 'high_light/high_depth')
+        self.left_input_path = os.path.join(self.data_path,'low_light/low_left_png')
+        self.right_input_path = os.path.join(self.data_path, 'low_light/low_right_png')
+        self.depth_input_path = os.path.join(self.data_path, 'low_light/low_depth_png')
+        self.gt_path = os.path.join(self.data_path, 'high_light/high_depth_png')
         self.transform = transform
         # maybe add quality later
 
@@ -35,10 +35,12 @@ class StereoDataset(Dataset):
         
         depth_input_name = os.path.join(self.depth_input_path, 'image_'+str(idx+1)+'.png')
         depth_input = io.imread(depth_input_name)
+        depth_input = depth_input[:,:,0]
         depth_input = np.divide(depth_input, 255)  # normalize image to be in [0,1]
 
         gt_name = os.path.join(self.gt_path, 'image_'+str(idx+1)+'.png')
         gt = io.imread(gt_name)
+        gt = gt[:,:,0]
         gt = np.divide(gt, 255) #normalize image to be in [0,1]
 
         sample = {'left_input': left_input, 'right_input': right_input, 'depth_input': depth_input, 'gt': gt}

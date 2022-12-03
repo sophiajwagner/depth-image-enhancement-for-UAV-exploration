@@ -9,11 +9,12 @@ from networks.StereoDataset import StereoDataset
 
 
 hparams = {
-    "batch_size": 20,
+    "batch_size": 10,
     "learning_rate": 1e-3,
-    "num_epochs": 100,
+    "num_epochs": 20,
     "validation_split": 0.2,
-    "data_path": '../python_images_new',
+    "data_path": '../total_python_images_dev',
+    "out_path": "out/train_stereo_dev_1ch", 
 }
 
 def train():
@@ -51,6 +52,9 @@ def train():
                                                     sampler=val_sampler)
 
     diz_loss = {'train_loss': [], 'val_loss': []}
+    if not os.path.exists(hparams['out_path']):
+        os.makedirs(hparams['out_path'])
+    
     for epoch in range(hparams["num_epochs"]):
         train_loss = train_epoch(model, device, train_loader, criterion, optimizer)
         visualize = False
@@ -64,8 +68,8 @@ def train():
 
         if visualize: 
             plot_loss(epoch+1, diz_loss['train_loss'], diz_loss['val_loss'])
-    
-    torch.save(model.module.state_dict(), "out/train_stereo/weights") 
+        torch.save(model, os.path.join(hparams['out_path'],"weights_pt.pt"))
+        torch.save(model.state_dict(), os.path.join(hparams['out_path'],"weights"))
 
 
 
@@ -106,9 +110,7 @@ def test_epoch(model, device, dataloader, loss_fn, visualize=False):
         conc_gt = []
         conc_inp = []
         for i, data in enumerate(dataloader):
-            left_input = data['left_input'].to(device)
-            #conc_inp.append(left_input.cpu())
-            left_input = left_input.permute(0,3,1,2).float()
+            left_input = data['left_input'].to(device).permute(0,3,1,2).float()
             right_input = data['right_input'].to(device).permute(0,3,1,2).float()
             depth_input = data['depth_input'].to(device).unsqueeze(1).float()
             gt = data['gt'].to(device).unsqueeze(1).float()
@@ -155,9 +157,9 @@ def plot_outputs(conc_out, conc_gt, conc_inp, n=3):
         ax.get_yaxis().set_visible(False)
         if i == n // 2:
             ax.set_title('Output images')
-    if not os.path.exists('out/train_stereo'):
-        os.makedirs('out/train_stereo')
-    plt.savefig('out/train_stereo/preds.png')
+    if not os.path.exists(hparams['out_path']):
+        os.makedirs(hparams['out_path'])
+    plt.savefig(os.path.join(hparams['out_path'],'preds.png'))
     plt.show()
 
 
@@ -170,7 +172,7 @@ def plot_loss(num_epochs, train_loss, val_loss):
     plt.ylabel('Loss')
     plt.legend(loc='upper right')
     plt.title('Train and validation loss')
-    plt.savefig('out/train_stereo/loss.png')
+    plt.savefig(os.path.join(hparams['out_path'],'loss.png'))
     plt.show()
 
 
