@@ -73,6 +73,56 @@ def train():
 
 
 
+def test(): 
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = StereoAutoencoder(hparams).to(device).float()
+    model.load_state_dict(torch.load(os.path.join(hparams['out_path'],"weights")))
+    
+    # Loss function
+    criterion = nn.MSELoss() 
+    
+    # Dataloader
+    #https://stackoverflow.com/questions/50544730/how-do-i-split-a-custom-dataset-into-training-and-test-datasets
+    dataset = StereoDataset(hparams)
+    shuffle_dataset = True
+    random_seed = 42
+    # Creating data indices for training and validation splits:
+    dataset_size = len(dataset)
+    indices = list(range(dataset_size))
+    split = int(np.floor(hparams["validation_split"] * dataset_size))
+    if shuffle_dataset:
+        np.random.seed(random_seed)
+        np.random.shuffle(indices)
+    train_indices, val_indices = indices[split:], indices[:split]
+
+    # Creating data samplers and loaders:
+    #train_sampler = SubsetRandomSampler(train_indices)
+    val_sampler = SubsetRandomSampler(val_indices)
+
+    val_loader = torch.utils.data.DataLoader(dataset, batch_size=hparams["batch_size"],
+                                                    sampler=val_sampler) 
+    val_loss = test_epoch(model, device, val_loader, criterion, True)
+    
+
+def test_image(idx): 
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = StereoAutoencoder(hparams).to(device).float()
+    model.load_state_dict(torch.load(os.path.join(hparams['out_path'],"weights")))
+    model.eval()
+    
+    dataset = StereoDataset(hparams) 
+    #input = torch.from_numpy(dataset[idx-1]['depth_input']).to(device).unsqueeze(0).unsqueeze(0).float
+    left_input = torch.from_numpy(dataset[idx-1]['left_input']).to(device).unsqueeze(0).permute(0,3,1,2).float()
+    right_input = torch.from_numpy(dataset[idx-1]['right_input']).to(device).unsqueeze(0).permute(0,3,1,2).float()
+    depth_input = torch.from_numpy(dataset[idx-1]['depth_input']).to(device).unsqueeze(0).unsqueeze(0).float()
+    output = model(left_input, right_input, depth_input).squeeze().cpu().detach().numpy()
+    
+    plt.imshow(output, cmap='gist_gray')
+    plt.show()
+    return output
+
+
+
 
 ### Training function
 #https://medium.com/dataseries/convolutional-autoencoder-in-pytorch-on-mnist-dataset-d65145c132ac
