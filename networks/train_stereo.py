@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from torch.utils.data.sampler import SubsetRandomSampler
 import os
+import seaborn as sns
 
 from networks.StereoAutoencoder import *
 from networks.StereoDataset import StereoDataset
@@ -13,9 +14,12 @@ hparams = {
     "learning_rate": 1e-3,
     "num_epochs": 20,
     "validation_split": 0.2,
-    "data_path": '../total_python_images_dev',
-    "out_path": "out/train_stereo_dev_1ch", 
+    "data_path": '../final_python_images',
+    "out_path": "out/train_stereo", 
 }
+
+# Train a model that takes a low-light depth and left and right stereo image as input 
+# and outputs the corresponding high-quality depht image 
 
 def train():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -29,7 +33,6 @@ def train():
     optimizer = torch.optim.Adam(model.parameters(), lr=hparams["learning_rate"])
 
     # Dataloader
-    #https://stackoverflow.com/questions/50544730/how-do-i-split-a-custom-dataset-into-training-and-test-datasets
     dataset = StereoDataset(hparams)
     shuffle_dataset = True
     random_seed = 42
@@ -68,8 +71,8 @@ def train():
 
         if visualize: 
             plot_loss(epoch+1, diz_loss['train_loss'], diz_loss['val_loss'])
-        torch.save(model, os.path.join(hparams['out_path'],"weights_pt.pt"))
-        torch.save(model.state_dict(), os.path.join(hparams['out_path'],"weights"))
+    torch.save(model, os.path.join(hparams['out_path'],"weights_pt.pt"))
+    torch.save(model.state_dict(), os.path.join(hparams['out_path'],"weights"))
 
 
 
@@ -82,7 +85,6 @@ def test():
     criterion = nn.MSELoss() 
     
     # Dataloader
-    #https://stackoverflow.com/questions/50544730/how-do-i-split-a-custom-dataset-into-training-and-test-datasets
     dataset = StereoDataset(hparams)
     shuffle_dataset = True
     random_seed = 42
@@ -95,32 +97,93 @@ def test():
         np.random.shuffle(indices)
     train_indices, val_indices = indices[split:], indices[:split]
 
-    # Creating data samplers and loaders:
-    #train_sampler = SubsetRandomSampler(train_indices)
     val_sampler = SubsetRandomSampler(val_indices)
-
     val_loader = torch.utils.data.DataLoader(dataset, batch_size=hparams["batch_size"],
                                                     sampler=val_sampler) 
     val_loss = test_epoch(model, device, val_loader, criterion, True)
     
 
 def test_image(idx): 
+    # Load model
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = StereoAutoencoder(hparams).to(device).float()
     model.load_state_dict(torch.load(os.path.join(hparams['out_path'],"weights")))
     model.eval()
-    
+    # Load dataset
     dataset = StereoDataset(hparams) 
-    #input = torch.from_numpy(dataset[idx-1]['depth_input']).to(device).unsqueeze(0).unsqueeze(0).float
-    left_input = torch.from_numpy(dataset[idx-1]['left_input']).to(device).unsqueeze(0).permute(0,3,1,2).float()
-    right_input = torch.from_numpy(dataset[idx-1]['right_input']).to(device).unsqueeze(0).permute(0,3,1,2).float()
-    depth_input = torch.from_numpy(dataset[idx-1]['depth_input']).to(device).unsqueeze(0).unsqueeze(0).float()
+    left_np = dataset[idx-1]['left_input']
+    left_input = torch.from_numpy(left_np).to(device).unsqueeze(0).unsqueeze(0).float()#permute(0,3,1,2).float()
+    right_np = dataset[idx-1]['right_input']
+    right_input = torch.from_numpy(right_np).to(device).unsqueeze(0).unsqueeze(0).float()#permute(0,3,1,2).float()
+    depth_np = dataset[idx-1]['depth_input']
+    depth_input = torch.from_numpy(depth_np).to(device).unsqueeze(0).unsqueeze(0).float()
+    gt_np = dataset[idx-1]['gt']
+    # Get model output
     output = model(left_input, right_input, depth_input).squeeze().cpu().detach().numpy()
     
+    # plot inputs, ground truth and output
+    plt.imshow(depth_np, cmap='gist_gray')
+    plt.title("Low-light depth input image", fontsize=15)
+    plt.axis('off')
+    plt.show()
+    
+    plt.imshow(left_np, cmap='gist_gray')
+    plt.title("Low-light left input image", fontsize=15)
+    plt.axis('off')
+    plt.show()
+    
+    plt.imshow(right_np, cmap='gist_gray')
+    plt.title("Low-light right input image", fontsize=15)
+    plt.axis('off')
+    plt.show()
+    
+    plt.imshow(gt_np, cmap='gist_gray')
+    plt.title("Ground truth depth image", fontsize=15)
+    plt.axis('off')
+    plt.show()
+    
     plt.imshow(output, cmap='gist_gray')
+    plt.title("Output of the model", fontsize=15)
+    plt.axis('off')
     plt.show()
     return output
+    
 
+def error_heatmaps(idx): 
+    # Load model
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = StereoAutoencoder(hparams).to(device).float()
+    model.load_state_dict(torch.load(os.path.join(hparams['out_path'],"weights")))
+    model.eval()
+    # Load data
+    dataset = StereoDataset(hparams) 
+    input_np = dataset[idx-1]['depth_input']
+    left_input = torch.from_numpy(dataset[idx-1]['left_input']).to(device).unsqueeze(0).unsqueeze(0).float()#permute(0,3,1,2).float()
+    right_input = torch.from_numpy(dataset[idx-1]['right_input']).to(device).unsqueeze(0).unsqueeze(0).float()#permute(0,3,1,2).float()
+    gt_np = dataset[idx-1]['gt']
+    depth_input = torch.from_numpy(input_np).to(device).unsqueeze(0).unsqueeze(0).float()
+    gt = torch.from_numpy(gt_np).to(device).unsqueeze(0).unsqueeze(0).float()
+    # Get output
+    output_np = model(left_input, right_input, depth_input).squeeze().cpu().detach().numpy()
+    input_np = input_np * 19.5 + 0.5
+    gt = gt * 19.5 + 0.5
+    output_np = output_np * 19.5 + 0.5
+    
+    # Plot error heatmaps
+    sns.heatmap(abs(input_np-output_np), square=True, cbar=True, cmap='rocket_r', xticklabels=False, yticklabels=False, vmin=0, vmax=5)
+    plt.title('Absolute error between input\n and predicted depth image')
+    plt.savefig(os.path.join(hparams['out_path'],'error_input_output_'+str(idx)+'.png'))
+    plt.show()
+    
+    sns.heatmap(abs(gt_np-output_np), square=True, cbar=True, cmap='rocket_r', xticklabels=False, yticklabels=False, vmin=0, vmax=5)
+    plt.title('Absolute error between ground truth\n and predicted depth image')
+    plt.savefig(os.path.join(hparams['out_path'],'error_gt_output_'+str(idx)+'.png'))
+    plt.show()
+    
+    sns.heatmap(abs(input_np-gt_np), square=True, cbar=True, cmap='rocket_r', xticklabels=False, yticklabels=False, vmin=0, vmax=5)
+    plt.title('Absolute error between input\n and ground truth depth image')
+    plt.savefig(os.path.join(hparams['out_path'],'error_input_gt_'+str(idx)+'.png'))
+    plt.show()
 
 
 
@@ -132,8 +195,8 @@ def train_epoch(model, device, dataloader, loss_fn, optimizer):
     train_loss = []
     # Iterate the dataloader
     for i, data in enumerate(dataloader):
-        left_input = data['left_input'].to(device).permute(0,3,1,2).float()
-        right_input = data['right_input'].to(device).permute(0,3,1,2).float()
+        left_input = data['left_input'].to(device).unsqueeze(1).float()#.permute(0,3,1,2).float()
+        right_input = data['right_input'].to(device).unsqueeze(1).float()#.permute(0,3,1,2).float()
         depth_input = data['depth_input'].to(device).unsqueeze(1).float()
         gt = data['gt'].to(device).unsqueeze(1).float()
         output = model(left_input, right_input, depth_input)
@@ -160,8 +223,8 @@ def test_epoch(model, device, dataloader, loss_fn, visualize=False):
         conc_gt = []
         conc_inp = []
         for i, data in enumerate(dataloader):
-            left_input = data['left_input'].to(device).permute(0,3,1,2).float()
-            right_input = data['right_input'].to(device).permute(0,3,1,2).float()
+            left_input = data['left_input'].to(device).unsqueeze(1).float()#permute(0,3,1,2).float()
+            right_input = data['right_input'].to(device).unsqueeze(1).float()#.permute(0,3,1,2).float()
             depth_input = data['depth_input'].to(device).unsqueeze(1).float()
             gt = data['gt'].to(device).unsqueeze(1).float()
             output = model(left_input, right_input, depth_input)

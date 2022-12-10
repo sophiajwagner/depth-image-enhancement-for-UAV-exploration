@@ -4,26 +4,19 @@ from torch import nn, optim
 from torch.nn import functional as F
 from torchvision import datasets, transforms
 
-
+# CNN model that takes a low-light depth image, left and right stereo images as input and output a high-quality depth image
 
 class RGBEncoder(nn.Module):
     def __init__(self, hparams):
         super().__init__()
-
         self.hparams = hparams
-        #https://www.cs.toronto.edu/~lczhang/360/lec/w05/autoencoder.html
         self.encoder = nn.Sequential(
-            nn.Conv2d(3, 8, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(1, 8, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(8),
             nn.ReLU(inplace=True),
-            #nn.Dropout(p=0.5),
             nn.Conv2d(8, 8, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(8),
             nn.ReLU(inplace=True),
-            #nn.Dropout(p=0.5),
-            #nn.Conv2d(8, 8, kernel_size=3, stride=1, padding=1),
-            #nn.BatchNorm2d(8),
-            #nn.ReLU(inplace=True),
         )
 
     def forward(self, x):
@@ -34,21 +27,14 @@ class RGBEncoder(nn.Module):
 class DepthEncoder(nn.Module):
     def __init__(self, hparams):
         super().__init__()
-
         self.hparams = hparams
-        #https://www.cs.toronto.edu/~lczhang/360/lec/w05/autoencoder.html
         self.encoder = nn.Sequential(
             nn.Conv2d(1, 8, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(8),
             nn.ReLU(inplace=True),
-            #nn.Dropout(p=0.5),
             nn.Conv2d(8, 8, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(8),
             nn.ReLU(inplace=True),
-            #nn.Dropout(p=0.5),
-            #nn.Conv2d(8, 8, kernel_size=3, stride=1, padding=1),
-            #nn.BatchNorm2d(8),
-            #nn.ReLU(inplace=True),
         )
 
     def forward(self, x):
@@ -59,25 +45,12 @@ class DepthEncoder(nn.Module):
 class Decoder(nn.Module):
     def __init__(self, hparams):
         super().__init__()
-
         self.hparams = hparams
         self.decoder = nn.Sequential(
-            #nn.ConvTranspose2d(96, 32, kernel_size=3, stride=1, padding=1, output_padding=0),
             nn.Conv2d(24, 8, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(8),
             nn.ReLU(inplace=True),
-            #nn.Dropout(p=0.5),
-            #nn.ConvTranspose2d(32, 16, kernel_size=3, stride=2, padding=1, output_padding=1),
-            #nn.Conv2d(16, 8, kernel_size=3, stride=1, padding=1),
-            #nn.BatchNorm2d(8),
-            #nn.ReLU(inplace=True),
-            #nn.Dropout(p=0.5),
-            #nn.ConvTranspose2d(16, 8, kernel_size=3, stride=2, padding=1, output_padding=1),
             nn.Conv2d(8, 1, kernel_size=3, stride=1, padding=1),
-            #nn.BatchNorm2d(8),
-            #nn.ReLU(inplace=True),
-            #nn.Dropout(p=0.5),
-            #nn.ConvTranspose2d(8, 1, kernel_size=3, stride=2, padding=1, output_padding=1),
             nn.Sigmoid()
         )
 

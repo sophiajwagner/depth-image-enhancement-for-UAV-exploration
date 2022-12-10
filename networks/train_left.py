@@ -18,6 +18,8 @@ hparams = {
     "out_path": "out/train_left",
 }
 
+# Train a model that takes a low-light stereo image as input and outputs the corresponding image in high-quality
+
 def train():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = Autoencoder(hparams).to(device).float()
@@ -30,7 +32,6 @@ def train():
     optimizer = torch.optim.Adam(model.parameters(), lr=hparams["learning_rate"])
 
     # Dataloader
-    #https://stackoverflow.com/questions/50544730/how-do-i-split-a-custom-dataset-into-training-and-test-datasets
     dataset = LeftDataset(hparams)
     shuffle_dataset = True
     random_seed = 42
@@ -56,7 +57,6 @@ def train():
     for epoch in range(hparams["num_epochs"]):
         train_loss = train_epoch(model, device, train_loader, criterion, optimizer)
         visualize = False
-        #if epoch+1==hparams["num_epochs"]: 
         if (epoch+1)%5 == 0: 
             visualize = True
         val_loss = test_epoch(model, device, val_loader, criterion, visualize)
@@ -66,9 +66,6 @@ def train():
         
         if visualize: 
             plot_loss(epoch+1, diz_loss['train_loss'], diz_loss['val_loss'])
-        
-        #if not os.path.exists('out/train_left'):
-        #    os.makedirs('out/train_left')
     torch.save(model, os.path.join(hparams['out_path'],"weights_pt.pt"))
     torch.save(model.state_dict(), os.path.join(hparams['out_path'],"weights"))
     
@@ -84,11 +81,10 @@ def test():
     criterion = nn.MSELoss() 
     
     # Dataloader
-    #https://stackoverflow.com/questions/50544730/how-do-i-split-a-custom-dataset-into-training-and-test-datasets
     dataset = LeftDataset(hparams)
     shuffle_dataset = True
     random_seed = 42
-    # Creating data indices for training and validation splits:
+    # Creating data indices for training and validation splits
     dataset_size = len(dataset)
     indices = list(range(dataset_size))
     split = int(np.floor(hparams["validation_split"] * dataset_size))
@@ -97,12 +93,8 @@ def test():
         np.random.shuffle(indices)
     train_indices, val_indices = indices[split:], indices[:split]
 
-    # Creating data samplers and loaders:
-    #train_sampler = SubsetRandomSampler(train_indices)
+    # Creating data samplers and loaders
     val_sampler = SubsetRandomSampler(val_indices)
-
-    #train_loader = torch.utils.data.DataLoader(dataset, batch_size=hparams["batch_size"],
-    #                                           sampler=train_sampler)
     val_loader = torch.utils.data.DataLoader(dataset, batch_size=hparams["batch_size"],
                                                     sampler=val_sampler) 
     
@@ -110,15 +102,18 @@ def test():
     
     
 def test_image(idx): 
+    # Load model
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = Autoencoder(hparams).to(device).float()
     model.load_state_dict(torch.load(os.path.join(hparams['out_path'],"weights")))
     model.eval()
-    
+    # Load dataset
     dataset = LeftDataset(hparams) 
     input = torch.from_numpy(dataset[idx-1]['input']).to(device).unsqueeze(0).permute(0,3,1,2).float()
+    # Get model output
     output = model(input).squeeze().permute(1,2,0).squeeze().cpu().detach().numpy()
-
+    
+    # plot output
     plt.imshow(output, cmap='gist_gray')
     plt.show()
     return output

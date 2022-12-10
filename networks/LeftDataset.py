@@ -4,6 +4,7 @@ import skimage.io as io
 from torch.utils.data import Dataset
 import numpy as np
 
+# Dataset that loads low-light stereo images and the corresponding high-light images
 
 class LeftDataset(Dataset):
     def __init__(self, hparams, transform=None):
@@ -11,7 +12,6 @@ class LeftDataset(Dataset):
         self.input_path = os.path.join(hparams['input_data_path'])
         self.gt_path = os.path.join(hparams['gt_data_path'])
         self.transform = transform
-        # maybe add quality later
 
     def __len__(self):
         return len(os.listdir(*[self.input_path]))

@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from torch.utils.data.sampler import SubsetRandomSampler
 import os
+import seaborn as sns
 
 from networks.DepthAutoencoder import *
 from networks.DepthDataset import DepthDataset
@@ -13,10 +14,12 @@ hparams = {
     "learning_rate": 1e-3,
     "num_epochs": 30,
     "validation_split": 0.2,
-    "input_data_path": '../total_python_images/low_light/low_depth_png',
-    "gt_data_path": '../total_python_images/high_light/high_depth_png',
+    "input_data_path": '../final_python_images/low_light/low_depth_tif',
+    "gt_data_path": '../final_python_images/high_light/high_depth_tif',
     "out_path": "out/train_depth",
 }
+
+# Train a model that takes a low-light depth image as input and output the corresponding high-light depth image
 
 def train():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -30,7 +33,6 @@ def train():
     optimizer = torch.optim.Adam(model.parameters(), lr=hparams["learning_rate"])
 
     # Dataloader
-    #https://stackoverflow.com/questions/50544730/how-do-i-split-a-custom-dataset-into-training-and-test-datasets
     dataset = DepthDataset(hparams)
     shuffle_dataset = True
     random_seed = 42
@@ -51,7 +53,8 @@ def train():
                                                sampler=train_sampler)
     val_loader = torch.utils.data.DataLoader(dataset, batch_size=hparams["batch_size"],
                                                     sampler=val_sampler)
-
+    if not os.path.exists(hparams['out_path']):
+        os.makedirs(hparams['out_path'])
     diz_loss = {'train_loss': [], 'val_loss': []}
     for epoch in range(hparams["num_epochs"]):
         train_loss = train_epoch(model, device, train_loader, criterion, optimizer)
@@ -71,7 +74,6 @@ def train():
     
         
         
-        
 def test(): 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = Autoencoder(hparams).to(device).float()
@@ -81,7 +83,6 @@ def test():
     criterion = nn.MSELoss() 
     
     # Dataloader
-    #https://stackoverflow.com/questions/50544730/how-do-i-split-a-custom-dataset-into-training-and-test-datasets
     dataset = DepthDataset(hparams)
     shuffle_dataset = True
     random_seed = 42
@@ -95,11 +96,7 @@ def test():
     train_indices, val_indices = indices[split:], indices[:split]
 
     # Creating data samplers and loaders:
-    #train_sampler = SubsetRandomSampler(train_indices)
     val_sampler = SubsetRandomSampler(val_indices)
-
-    #train_loader = torch.utils.data.DataLoader(dataset, batch_size=hparams["batch_size"],
-    #                                           sampler=train_sampler)
     val_loader = torch.utils.data.DataLoader(dataset, batch_size=hparams["batch_size"],
                                                     sampler=val_sampler) 
     
@@ -107,19 +104,71 @@ def test():
     
 
 def test_image(idx): 
+    # Load model
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = Autoencoder(hparams).to(device).float()
     model.load_state_dict(torch.load(os.path.join(hparams['out_path'],"weights")))
     model.eval()
-    
+    # Load dataset
     dataset = DepthDataset(hparams) 
-    input = torch.from_numpy(dataset[idx-1]['input']).to(device).unsqueeze(0).unsqueeze(0).float()
-    #gt = torch.from_numpy(dataset[idx]['gt']).to(device).float()
+    input_np = dataset[idx-1]['input']
+    input = torch.from_numpy(input_np).to(device).unsqueeze(0).unsqueeze(0).float()
+    gt_np = dataset[idx-1]['gt']
+    # Get model output
     output = model(input).squeeze().cpu().detach().numpy()
     
+    # plot input, ground truth and output
+    plt.imshow(input_np, cmap='gist_gray')
+    plt.title("Low-light depth input image", fontsize=15)
+    plt.axis('off')
+    plt.show()
+    
+    plt.imshow(gt_np, cmap='gist_gray')
+    plt.title("Ground truth depth image", fontsize=15)
+    plt.axis('off')
+    plt.show()
+    
     plt.imshow(output, cmap='gist_gray')
+    plt.title("Output of the model", fontsize=15)
+    plt.axis('off')
     plt.show()
     return output
+    
+    
+def error_heatmaps(idx):
+    # Load model
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = Autoencoder(hparams).to(device).float()
+    model.load_state_dict(torch.load(os.path.join(hparams['out_path'],"weights")))
+    model.eval()
+    # Load data
+    dataset = DepthDataset(hparams) 
+    input_np = dataset[idx-1]['input']
+    gt_np = dataset[idx-1]['gt']
+    input = torch.from_numpy(input_np).to(device).unsqueeze(0).unsqueeze(0).float()
+    gt = torch.from_numpy(gt_np).to(device).unsqueeze(0).unsqueeze(0).float()
+    # Get output
+    output_np = model(input).squeeze().cpu().detach().numpy()
+    # scale back
+    input_np = input_np * 19.5 + 0.5
+    gt = gt * 19.5 + 0.5
+    output_np = output_np * 19.5 + 0.5
+    
+    # Plot error heatmaps
+    sns.heatmap(abs(input_np-output_np), square=True, cbar=True, cmap='rocket_r', xticklabels=False, yticklabels=False, vmin=0, vmax=5)
+    plt.title('Absolute error between input\n and predicted depth image')
+    plt.savefig(os.path.join(hparams['out_path'],'error_input_output_'+str(idx)+'.png'))
+    plt.show()
+    
+    sns.heatmap(abs(gt_np-output_np), square=True, cbar=True, cmap='rocket_r', xticklabels=False, yticklabels=False, vmin=0, vmax=5)
+    plt.title('Absolute error between ground truth\n and predicted depth image')
+    plt.savefig(os.path.join(hparams['out_path'],'error_gt_output_'+str(idx)+'.png'))
+    plt.show()
+    
+    sns.heatmap(abs(input_np-gt_np), square=True, cbar=True, cmap='rocket_r', xticklabels=False, yticklabels=False, vmin=0, vmax=5)
+    plt.title('Absolute error between input\n and ground truth depth image')
+    plt.savefig(os.path.join(hparams['out_path'],'error_input_gt_'+str(idx)+'.png'))
+    plt.show()
 
 
 
@@ -202,8 +251,6 @@ def plot_outputs(conc_out, conc_gt, conc_inp, n=3):
         ax.get_yaxis().set_visible(False)
         if i == n // 2:
             ax.set_title('Output images')
-    if not os.path.exists(hparams['out_path']):
-        os.makedirs(hparams['out_path'])
     plt.savefig(os.path.join(hparams['out_path'],'preds.png'))
     plt.show()
     
