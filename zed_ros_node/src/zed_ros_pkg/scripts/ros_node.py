@@ -109,11 +109,15 @@ class ImageListener:
         #Retrieving actual depth values after normalization
         model2_out = (model2_out*19.5)+0.5
         
-        #Calculating original depth at center pixel
-        original_depth = depth_image_raw[int(len(depth_image_raw)/2)][int(len(depth_image_raw[0])/2)]
+        #Calculating depth at 5x5 pixel window
+        for i in range(-2,2):
+            for j in range(-2,2):
+                original_depth = depth_image_raw[(int(len(depth_image_raw)/2)+i)][(int(len(depth_image_raw[0])/2)+j)]
         
         #Calculating depth at center pixel from model output
-        enhanced_depth = model2_out[int(len(model2_out)/2)][int(len(model2_out[0])/2)]
+        for i in range(-2,2):
+            for j in range(-2,2):
+                enhanced_depth = model2_out[(int(len(model2_out)/2))+i][(int(len(model2_out[0])/2))+j]
     
         #Print the calculated depths
         print("Original Depth:",original_depth,"Depth Estimated from Model:",enhanced_depth)
