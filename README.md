@@ -16,7 +16,7 @@ The generated dataset can be found [here](https://drive.google.com/drive/folders
 ### Resources 
 
 **Software:**
-- PyTorch
+- PyTorch 1.10.0
 - Python 2.7, 3.6
 - C++
 - ROS Melodic
