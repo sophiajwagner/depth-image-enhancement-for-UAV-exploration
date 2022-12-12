@@ -37,11 +37,11 @@ The generated dataset can be found [here](https://drive.google.com/drive/folders
 
 Architecture             | Results   
 :-------------------------:|:-------------------------:
-![](https://github.com/sophiajwagner/depth-image-enhancement-for-UAV-exploration/blob/main/img/model2_arch.png)  |  ![](https://github.com/sophiajwagner/depth-image-enhancement-for-UAV-exploration/blob/main/img/model2_preds.png)
+![](https://github.com/sophiajwagner/depth-image-enhancement-for-UAV-exploration/blob/main/img/model2_arch.png)  |  ![](https://github.com/sophiajwagner/depth-image-enhancement-for-UAV-exploration/blob/main/img/model2_preds.PNG)
 
 
 
 
 Architecture             | Results   
 :-------------------------:|:-------------------------:
-![](https://github.com/sophiajwagner/depth-image-enhancement-for-UAV-exploration/blob/main/img/model3_arch.png)  |  ![](https://github.com/sophiajwagner/depth-image-enhancement-for-UAV-exploration/blob/main/img/model3_preds.png)
+![](https://github.com/sophiajwagner/depth-image-enhancement-for-UAV-exploration/blob/main/img/model3_arch.png)  |  ![](https://github.com/sophiajwagner/depth-image-enhancement-for-UAV-exploration/blob/main/img/model3_preds.PNG)
